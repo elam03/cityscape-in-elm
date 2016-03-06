@@ -7843,6 +7843,283 @@ Elm.Native.Window.make = function make(localRuntime) {
 	};
 };
 
+Elm.Random = Elm.Random || {};
+Elm.Random.make = function (_elm) {
+   "use strict";
+   _elm.Random = _elm.Random || {};
+   if (_elm.Random.values) return _elm.Random.values;
+   var _U = Elm.Native.Utils.make(_elm),
+   $Basics = Elm.Basics.make(_elm),
+   $List = Elm.List.make(_elm);
+   var _op = {};
+   var magicNum8 = 2147483562;
+   var range = function (_p0) {
+      return {ctor: "_Tuple2",_0: 0,_1: magicNum8};
+   };
+   var magicNum7 = 2137383399;
+   var magicNum6 = 2147483563;
+   var magicNum5 = 3791;
+   var magicNum4 = 40692;
+   var magicNum3 = 52774;
+   var magicNum2 = 12211;
+   var magicNum1 = 53668;
+   var magicNum0 = 40014;
+   var generate = F2(function (_p1,seed) {
+      var _p2 = _p1;
+      return _p2._0(seed);
+   });
+   var Seed = function (a) {    return {ctor: "Seed",_0: a};};
+   var State = F2(function (a,b) {
+      return {ctor: "State",_0: a,_1: b};
+   });
+   var initState = function (s$) {
+      var s = A2($Basics.max,s$,0 - s$);
+      var q = s / (magicNum6 - 1) | 0;
+      var s2 = A2($Basics._op["%"],q,magicNum7 - 1);
+      var s1 = A2($Basics._op["%"],s,magicNum6 - 1);
+      return A2(State,s1 + 1,s2 + 1);
+   };
+   var next = function (_p3) {
+      var _p4 = _p3;
+      var _p6 = _p4._1;
+      var _p5 = _p4._0;
+      var k$ = _p6 / magicNum3 | 0;
+      var s2$ = magicNum4 * (_p6 - k$ * magicNum3) - k$ * magicNum5;
+      var s2$$ = _U.cmp(s2$,0) < 0 ? s2$ + magicNum7 : s2$;
+      var k = _p5 / magicNum1 | 0;
+      var s1$ = magicNum0 * (_p5 - k * magicNum1) - k * magicNum2;
+      var s1$$ = _U.cmp(s1$,0) < 0 ? s1$ + magicNum6 : s1$;
+      var z = s1$$ - s2$$;
+      var z$ = _U.cmp(z,1) < 0 ? z + magicNum8 : z;
+      return {ctor: "_Tuple2",_0: z$,_1: A2(State,s1$$,s2$$)};
+   };
+   var split = function (_p7) {
+      var _p8 = _p7;
+      var _p11 = _p8._1;
+      var _p10 = _p8._0;
+      var _p9 = $Basics.snd(next(_p8));
+      var t1 = _p9._0;
+      var t2 = _p9._1;
+      var new_s2 = _U.eq(_p11,1) ? magicNum7 - 1 : _p11 - 1;
+      var new_s1 = _U.eq(_p10,magicNum6 - 1) ? 1 : _p10 + 1;
+      return {ctor: "_Tuple2"
+             ,_0: A2(State,new_s1,t2)
+             ,_1: A2(State,t1,new_s2)};
+   };
+   var initialSeed = function (n) {
+      return Seed({state: initState(n)
+                  ,next: next
+                  ,split: split
+                  ,range: range});
+   };
+   var Generator = function (a) {
+      return {ctor: "Generator",_0: a};
+   };
+   var andThen = F2(function (_p12,callback) {
+      var _p13 = _p12;
+      return Generator(function (seed) {
+         var _p14 = _p13._0(seed);
+         var result = _p14._0;
+         var newSeed = _p14._1;
+         var _p15 = callback(result);
+         var genB = _p15._0;
+         return genB(newSeed);
+      });
+   });
+   var map5 = F6(function (func,_p20,_p19,_p18,_p17,_p16) {
+      var _p21 = _p20;
+      var _p22 = _p19;
+      var _p23 = _p18;
+      var _p24 = _p17;
+      var _p25 = _p16;
+      return Generator(function (seed0) {
+         var _p26 = _p21._0(seed0);
+         var a = _p26._0;
+         var seed1 = _p26._1;
+         var _p27 = _p22._0(seed1);
+         var b = _p27._0;
+         var seed2 = _p27._1;
+         var _p28 = _p23._0(seed2);
+         var c = _p28._0;
+         var seed3 = _p28._1;
+         var _p29 = _p24._0(seed3);
+         var d = _p29._0;
+         var seed4 = _p29._1;
+         var _p30 = _p25._0(seed4);
+         var e = _p30._0;
+         var seed5 = _p30._1;
+         return {ctor: "_Tuple2",_0: A5(func,a,b,c,d,e),_1: seed5};
+      });
+   });
+   var map4 = F5(function (func,_p34,_p33,_p32,_p31) {
+      var _p35 = _p34;
+      var _p36 = _p33;
+      var _p37 = _p32;
+      var _p38 = _p31;
+      return Generator(function (seed0) {
+         var _p39 = _p35._0(seed0);
+         var a = _p39._0;
+         var seed1 = _p39._1;
+         var _p40 = _p36._0(seed1);
+         var b = _p40._0;
+         var seed2 = _p40._1;
+         var _p41 = _p37._0(seed2);
+         var c = _p41._0;
+         var seed3 = _p41._1;
+         var _p42 = _p38._0(seed3);
+         var d = _p42._0;
+         var seed4 = _p42._1;
+         return {ctor: "_Tuple2",_0: A4(func,a,b,c,d),_1: seed4};
+      });
+   });
+   var map3 = F4(function (func,_p45,_p44,_p43) {
+      var _p46 = _p45;
+      var _p47 = _p44;
+      var _p48 = _p43;
+      return Generator(function (seed0) {
+         var _p49 = _p46._0(seed0);
+         var a = _p49._0;
+         var seed1 = _p49._1;
+         var _p50 = _p47._0(seed1);
+         var b = _p50._0;
+         var seed2 = _p50._1;
+         var _p51 = _p48._0(seed2);
+         var c = _p51._0;
+         var seed3 = _p51._1;
+         return {ctor: "_Tuple2",_0: A3(func,a,b,c),_1: seed3};
+      });
+   });
+   var map2 = F3(function (func,_p53,_p52) {
+      var _p54 = _p53;
+      var _p55 = _p52;
+      return Generator(function (seed0) {
+         var _p56 = _p54._0(seed0);
+         var a = _p56._0;
+         var seed1 = _p56._1;
+         var _p57 = _p55._0(seed1);
+         var b = _p57._0;
+         var seed2 = _p57._1;
+         return {ctor: "_Tuple2",_0: A2(func,a,b),_1: seed2};
+      });
+   });
+   var map = F2(function (func,_p58) {
+      var _p59 = _p58;
+      return Generator(function (seed0) {
+         var _p60 = _p59._0(seed0);
+         var a = _p60._0;
+         var seed1 = _p60._1;
+         return {ctor: "_Tuple2",_0: func(a),_1: seed1};
+      });
+   });
+   var listHelp = F4(function (list,n,generate,seed) {
+      listHelp: while (true) if (_U.cmp(n,1) < 0)
+      return {ctor: "_Tuple2",_0: $List.reverse(list),_1: seed};
+      else {
+            var _p61 = generate(seed);
+            var value = _p61._0;
+            var newSeed = _p61._1;
+            var _v19 = A2($List._op["::"],value,list),
+            _v20 = n - 1,
+            _v21 = generate,
+            _v22 = newSeed;
+            list = _v19;
+            n = _v20;
+            generate = _v21;
+            seed = _v22;
+            continue listHelp;
+         }
+   });
+   var list = F2(function (n,_p62) {
+      var _p63 = _p62;
+      return Generator(function (seed) {
+         return A4(listHelp,_U.list([]),n,_p63._0,seed);
+      });
+   });
+   var pair = F2(function (genA,genB) {
+      return A3(map2,
+      F2(function (v0,v1) {
+         return {ctor: "_Tuple2",_0: v0,_1: v1};
+      }),
+      genA,
+      genB);
+   });
+   var minInt = -2147483648;
+   var maxInt = 2147483647;
+   var iLogBase = F2(function (b,i) {
+      return _U.cmp(i,b) < 0 ? 1 : 1 + A2(iLogBase,b,i / b | 0);
+   });
+   var $int = F2(function (a,b) {
+      return Generator(function (_p64) {
+         var _p65 = _p64;
+         var _p70 = _p65._0;
+         var base = 2147483561;
+         var f = F3(function (n,acc,state) {
+            f: while (true) {
+               var _p66 = n;
+               if (_p66 === 0) {
+                     return {ctor: "_Tuple2",_0: acc,_1: state};
+                  } else {
+                     var _p67 = _p70.next(state);
+                     var x = _p67._0;
+                     var state$ = _p67._1;
+                     var _v26 = n - 1,_v27 = x + acc * base,_v28 = state$;
+                     n = _v26;
+                     acc = _v27;
+                     state = _v28;
+                     continue f;
+                  }
+            }
+         });
+         var _p68 = _U.cmp(a,b) < 0 ? {ctor: "_Tuple2"
+                                      ,_0: a
+                                      ,_1: b} : {ctor: "_Tuple2",_0: b,_1: a};
+         var lo = _p68._0;
+         var hi = _p68._1;
+         var k = hi - lo + 1;
+         var n = A2(iLogBase,base,k);
+         var _p69 = A3(f,n,1,_p70.state);
+         var v = _p69._0;
+         var state$ = _p69._1;
+         return {ctor: "_Tuple2"
+                ,_0: lo + A2($Basics._op["%"],v,k)
+                ,_1: Seed(_U.update(_p70,{state: state$}))};
+      });
+   });
+   var $float = F2(function (a,b) {
+      return Generator(function (seed) {
+         var _p71 = A2(generate,A2($int,minInt,maxInt),seed);
+         var number = _p71._0;
+         var newSeed = _p71._1;
+         var negativeOneToOne = $Basics.toFloat(number) / $Basics.toFloat(maxInt - minInt);
+         var _p72 = _U.cmp(a,b) < 0 ? {ctor: "_Tuple2"
+                                      ,_0: a
+                                      ,_1: b} : {ctor: "_Tuple2",_0: b,_1: a};
+         var lo = _p72._0;
+         var hi = _p72._1;
+         var scaled = (lo + hi) / 2 + (hi - lo) * negativeOneToOne;
+         return {ctor: "_Tuple2",_0: scaled,_1: newSeed};
+      });
+   });
+   var bool = A2(map,
+   F2(function (x,y) {    return _U.eq(x,y);})(1),
+   A2($int,0,1));
+   return _elm.Random.values = {_op: _op
+                               ,bool: bool
+                               ,$int: $int
+                               ,$float: $float
+                               ,list: list
+                               ,pair: pair
+                               ,map: map
+                               ,map2: map2
+                               ,map3: map3
+                               ,map4: map4
+                               ,map5: map5
+                               ,andThen: andThen
+                               ,minInt: minInt
+                               ,maxInt: maxInt
+                               ,generate: generate
+                               ,initialSeed: initialSeed};
+};
 Elm.Window = Elm.Window || {};
 Elm.Window.make = function (_elm) {
    "use strict";
@@ -7881,46 +8158,32 @@ Elm.Main.make = function (_elm) {
    $Time = Elm.Time.make(_elm),
    $Window = Elm.Window.make(_elm);
    var _op = {};
-   var texturedBuilding = $Graphics$Collage.toForm(A3($Graphics$Element.image,
-   35,
-   35,
-   "minimal_industry.png"));
    var darkGrey = A4($Color.rgba,50,50,50,0.6);
    var clearGrey = A4($Color.rgba,111,111,111,0.6);
-   var building = $Graphics$Collage.group(_U.list([A2($Graphics$Collage.move,
-                                                  {ctor: "_Tuple2",_0: 50,_1: 10},
-                                                  A2($Graphics$Collage.filled,
-                                                  clearGrey,
-                                                  A2($Graphics$Collage.rect,50,100)))
-                                                  ,A2($Graphics$Collage.rotate,
-                                                  $Basics.degrees(90),
-                                                  A2($Graphics$Collage.move,
-                                                  {ctor: "_Tuple2",_0: 0,_1: 0},
-                                                  A2($Graphics$Collage.filled,
-                                                  clearGrey,
-                                                  A2($Graphics$Collage.ngon,3,50))))]));
-   var buildingDebug = function (_p0) {
-      var _p1 = _p0;
-      var _p2 = _p1._0;
-      var topHeight = 5;
-      var topWidth = 50;
-      var h = 100;
-      var w = 50;
+   var displayBuilding = function (b) {
+      var topHeight = b.h / 10;
+      var topWidth = b.w / 10;
       return $Graphics$Collage.group(_U.list([A2($Graphics$Collage.move,
-                                             {ctor: "_Tuple2",_0: _p2 + w,_1: 0},
+                                             {ctor: "_Tuple2",_0: b.x,_1: b.y},
                                              A2($Graphics$Collage.filled,
                                              clearGrey,
-                                             A2($Graphics$Collage.rect,w,h)))
+                                             A2($Graphics$Collage.rect,b.w,b.h - topHeight * 2)))
                                              ,A2($Graphics$Collage.move,
-                                             {ctor: "_Tuple2",_0: _p2 + topWidth / 2,_1: h / 2},
+                                             {ctor: "_Tuple2",_0: b.x,_1: b.y - topHeight},
                                              A2($Graphics$Collage.filled,
                                              darkGrey,
-                                             $Graphics$Collage.polygon(_U.list([{ctor: "_Tuple2",_0: 0,_1: 0}
-                                                                               ,{ctor: "_Tuple2",_0: topWidth,_1: 0}
-                                                                               ,{ctor: "_Tuple2",_0: topWidth - topHeight,_1: h / 8}
-                                                                               ,{ctor: "_Tuple2",_0: topHeight,_1: h / 8}]))))]));
+                                             $Graphics$Collage.polygon(_U.list([{ctor: "_Tuple2"
+                                                                                ,_0: (0 - b.w) / 2
+                                                                                ,_1: b.h / 2}
+                                                                               ,{ctor: "_Tuple2"
+                                                                                ,_0: (0 - b.w) / 2 + topWidth
+                                                                                ,_1: b.h / 2 + topHeight}
+                                                                               ,{ctor: "_Tuple2"
+                                                                                ,_0: b.w / 2 - topWidth
+                                                                                ,_1: b.h / 2 + topHeight}
+                                                                               ,{ctor: "_Tuple2",_0: b.w / 2,_1: b.h / 2}]))))]));
    };
-   var debugStuff = function (model) {
+   var debugInfo = function (model) {
       var keys = {ctor: "_Tuple2",_0: model.kx,_1: model.ky};
       var dt = $Basics.round(model.t);
       var m = {ctor: "_Tuple2",_0: model.x,_1: model.y};
@@ -7936,36 +8199,30 @@ Elm.Main.make = function (_elm) {
               "keys: ",
               $Basics.toString(keys)))])));
    };
-   var view = F2(function (_p3,model) {
-      var _p4 = _p3;
-      var _p6 = _p4._0;
-      var _p5 = {ctor: "_Tuple2",_0: model.x,_1: model.y};
-      var dx = _p5._0;
-      var dy = _p5._1;
-      return A3($Graphics$Collage.collage,
-      _p6,
-      _p4._1,
+   var view = F2(function (_p0,model) {
+      var _p1 = _p0;
+      var _p3 = _p1._0;
+      var buildings = A2($List.map,displayBuilding,model.buildings);
+      var _p2 = {ctor: "_Tuple2",_0: model.x,_1: 0 - model.y};
+      var dx = _p2._0;
+      var dy = _p2._1;
+      var things = A2($Basics._op["++"],
+      buildings,
       _U.list([A2($Graphics$Collage.move,
-              {ctor: "_Tuple2",_0: 0,_1: 0},
-              building)
-              ,A2($Graphics$Collage.move,
-              {ctor: "_Tuple2",_0: 100,_1: 0},
-              buildingDebug({ctor: "_Tuple2",_0: dx,_1: dy}))
-              ,A2($Graphics$Collage.move,
-              {ctor: "_Tuple2",_0: 0,_1: -200},
-              texturedBuilding)
-              ,A2($Graphics$Collage.move,
+              {ctor: "_Tuple2"
+              ,_0: $Basics.toFloat(0 - _p3) / 3
+              ,_1: $Basics.toFloat(_p3) / 3},
+              debugInfo(model))
+              ,A2($Graphics$Collage.rotate,
+              $Basics.degrees(model.t),
+              A2($Graphics$Collage.move,
               {ctor: "_Tuple2",_0: dx,_1: dy},
               A2($Graphics$Collage.filled,
               $Color.red,
-              A2($Graphics$Collage.ngon,3,25)))
-              ,A2($Graphics$Collage.move,
-              {ctor: "_Tuple2"
-              ,_0: $Basics.toFloat(0 - _p6) / 3
-              ,_1: $Basics.toFloat(_p6) / 3},
-              debugStuff(model))]));
+              A2($Graphics$Collage.ngon,3,5))))]));
+      return A3($Graphics$Collage.collage,_p3,_p1._1,things);
    });
-   var input3 = function () {
+   var input = function () {
       var delta = A2($Signal.map,
       function (t) {
          return t / 20;
@@ -7979,92 +8236,84 @@ Elm.Main.make = function (_elm) {
       $Keyboard.arrows,
       $Mouse.position);
    }();
-   var input2 = function () {
-      var delta = A2($Signal.map,
-      function (t) {
-         return t / 20;
-      },
-      $Time.fps(30));
-      return A3($Signal.map2,
-      F2(function (v0,v1) {
-         return {ctor: "_Tuple2",_0: v0,_1: v1};
-      }),
-      delta,
-      $Mouse.position);
-   }();
-   var input = function () {
-      var delta = A2($Signal.map,
-      function (t) {
-         return t / 20;
-      },
-      $Time.fps(30));
-      return A2($Signal.sampleOn,
-      delta,
-      A3($Signal.map2,
-      F2(function (v0,v1) {
-         return {ctor: "_Tuple2",_0: v0,_1: v1};
-      }),
-      delta,
-      $Keyboard.arrows));
-   }();
    var timeUpdate = F2(function (dt,model) {
       return _U.update(model,{t: model.t + dt});
    });
-   var mouseUpdate = F2(function (_p7,model) {
-      var _p8 = _p7;
+   var mouseUpdate = F2(function (_p4,model) {
+      var _p5 = _p4;
       return _U.update(model,
-      {x: $Basics.toFloat(_p8._0),y: $Basics.toFloat(_p8._1)});
+      {x: $Basics.toFloat(_p5._0),y: $Basics.toFloat(_p5._1)});
    });
    var keysUpdate = F2(function (keys,model) {
       return _U.update(model,
       {kx: model.kx + keys.x,ky: model.ky + keys.y});
    });
-   var update3 = F2(function (_p9,model) {
-      var _p10 = _p9;
+   var update = F2(function (_p6,model) {
+      var _p7 = _p6;
       return A2(keysUpdate,
-      _p10._1,
+      _p7._1,
       A2(mouseUpdate,
-      {ctor: "_Tuple2",_0: _p10._2._0,_1: _p10._2._1},
-      A2(timeUpdate,_p10._0,model)));
+      {ctor: "_Tuple2",_0: _p7._2._0,_1: _p7._2._1},
+      A2(timeUpdate,_p7._0,model)));
    });
-   var update2 = F2(function (_p11,model) {
-      var _p12 = _p11;
-      return A2(mouseUpdate,
-      {ctor: "_Tuple2",_0: _p12._1._0,_1: _p12._1._1},
-      A2(timeUpdate,_p12._0,model));
+   var Building = F5(function (a,b,c,d,e) {
+      return {x: a,y: b,w: c,h: d,layer: e};
    });
-   var update = F2(function (_p13,model) {
-      var _p14 = _p13;
-      return A2(timeUpdate,_p14._0,A2(keysUpdate,_p14._1,model));
-   });
-   var appModel = {x: 0,y: 0,kx: 0,ky: 0,t: 0};
+   var Keys = F2(function (a,b) {    return {x: a,y: b};});
+   var Back = {ctor: "Back"};
+   var Middle = {ctor: "Middle"};
+   var Front = {ctor: "Front"};
+   var building = function (id) {
+      return {x: $Basics.toFloat(id * 50)
+             ,y: 0
+             ,w: 40
+             ,h: 80
+             ,layer: Front};
+   };
+   var generateBuildings = function (list) {
+      var _p8 = list;
+      if (_p8.ctor === "[]") {
+            return _U.list([]);
+         } else {
+            return A2($List.append,
+            _U.list([building(_p8._0)]),
+            generateBuildings(_p8._1));
+         }
+   };
+   var newBuilding = {x: 50,y: 0,w: 40,h: 80,layer: Front};
+   var initialModel = {x: 0
+                      ,y: 0
+                      ,kx: 0
+                      ,ky: 0
+                      ,t: 0
+                      ,buildings: generateBuildings(_U.range(-5,5))};
    var main = A3($Signal.map2,
    view,
    $Window.dimensions,
-   A3($Signal.foldp,update3,appModel,input3));
-   var Keys = F2(function (a,b) {    return {x: a,y: b};});
-   var Model = F5(function (a,b,c,d,e) {
-      return {x: a,y: b,kx: c,ky: d,t: e};
+   A3($Signal.foldp,update,initialModel,input));
+   var Model = F6(function (a,b,c,d,e,f) {
+      return {x: a,y: b,kx: c,ky: d,t: e,buildings: f};
    });
    return _elm.Main.values = {_op: _op
                              ,Model: Model
+                             ,initialModel: initialModel
+                             ,Front: Front
+                             ,Middle: Middle
+                             ,Back: Back
                              ,Keys: Keys
-                             ,appModel: appModel
+                             ,Building: Building
+                             ,building: building
+                             ,generateBuildings: generateBuildings
+                             ,newBuilding: newBuilding
                              ,update: update
-                             ,update2: update2
-                             ,update3: update3
                              ,keysUpdate: keysUpdate
                              ,mouseUpdate: mouseUpdate
                              ,timeUpdate: timeUpdate
                              ,input: input
-                             ,input2: input2
-                             ,input3: input3
                              ,view: view
                              ,main: main
-                             ,debugStuff: debugStuff
+                             ,debugInfo: debugInfo
                              ,clearGrey: clearGrey
                              ,darkGrey: darkGrey
-                             ,building: building
-                             ,buildingDebug: buildingDebug
-                             ,texturedBuilding: texturedBuilding};
+                             ,displayBuilding: displayBuilding};
 };
