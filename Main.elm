@@ -15,18 +15,38 @@ type alias Model =
     ,   kx : Int
     ,   ky : Int
     ,   t : Float
+    ,   seed : Random.Seed
     ,   buildings : List Building
     }
 
 initialModel : Model
 initialModel =
-    { x = 0
-    , y = 0
-    , kx = 0
-    , ky = 0
-    , t = 0
-    , buildings = generateBuildings [-5..5]
-    }
+    let
+        initialSeed = Random.initialSeed 42
+    in
+        { x = 0
+        , y = 0
+        , kx = 0
+        , ky = 0
+        , t = 0
+        , seed = initialSeed
+        -- , buildings = generateBuildings [getRandomFloat , getRandomFloat]
+        -- , buildings = generateBuildings initialSeed [-5..5]
+        , buildings = []
+        }
+
+generateBuildings2 : Model -> Model
+generateBuildings2 model' =
+    -- model
+    let
+        -- tuple = getRandomInt model 20 40
+        tuple = (20, model')
+        pos = (List.length model.buildings)
+        -- height = fst tuple
+        height = pos * 4
+        model = snd tuple
+    in
+        { model | buildings = List.append model.buildings [(newBuilding pos height)] }
 
 type Layer = Front | Middle | Back
 type alias Keys = { x:Int, y:Int }
@@ -39,39 +59,71 @@ type alias Building =
     , layer : Layer
     }
 
-building : Int -> Building
-building id =
-    { x = toFloat (id * 50)
+getRandomFloat : Model -> Float -> Float -> (Float, Model)
+getRandomFloat model min max =
+    let
+        tuple = Random.generate (Random.float min max) model.seed
+        value = fst tuple
+        updatedModel = { model | seed = snd tuple }
+    in
+        (value, updatedModel)
+
+getRandomInt : Model -> Int -> Int -> (Int, Model)
+getRandomInt model min max =
+    let
+        tuple = Random.generate (Random.int min max) model.seed
+        value = fst tuple
+        updatedModel = { model | seed = snd tuple }
+    in
+        (value, updatedModel)
+
+getRandomHeight : Random.Seed -> Float
+getRandomHeight seed =
+    seed
+        |> Random.generate (Random.float 40 80)
+        |> fst
+
+building : Random.Seed -> Int -> Building
+building seed pos =
+    { x = toFloat (pos * 50)
     , y = 0
     , w = 40
-    , h = 80
+    , h = getRandomHeight seed
     , layer = Front
     }
 
-generateBuildings : List Int -> List Building
-generateBuildings list =
+newBuilding : Int -> Int -> Building
+newBuilding pos height =
+    { x = toFloat (pos * 50)
+    , y = 0
+    , w = 40
+    , h = toFloat height
+    , layer = Front
+    }
+
+generateBuildings : Random.Seed -> List (Int) -> List Building
+generateBuildings seed list =
     case list of
         [] ->
             []
 
         first :: rest ->
             -- (building [first]) + generateBuildings rest
-            List.append [building first] (generateBuildings rest)
+            List.append [building seed first] (generateBuildings seed rest)
             -- List.append ([ building 0 ] (generateBuildings rest))
     -- if count == 0 then
     --     building count
     -- else then
     --     (generateBuildings count - 1)
 
-
-newBuilding : Building
-newBuilding =
-    { x = 50
-    , y = 0
-    , w = 40
-    , h = 80
-    , layer = Front
-    }
+-- newBuilding : Building
+-- newBuilding =
+--     { x = 50
+--     , y = 0
+--     , w = 40
+--     , h = 80
+--     , layer = Front
+--     }
 
 -- seed = Random.initialSeed 42
 
@@ -99,9 +151,15 @@ update (dt, keys, (mx,my)) model =
 
 keysUpdate : Keys -> Model -> Model
 keysUpdate keys model =
-    { model | kx = model.kx + keys.x
-    ,         ky = model.ky + keys.y
-    }
+    let m =
+        { model | kx = model.kx + keys.x
+        ,         ky = model.ky + keys.y
+        }
+    in
+        if keys.y > 0 then
+            generateBuildings2 m
+        else
+            m
 
 mouseUpdate : (Int, Int) -> Model -> Model
 mouseUpdate (x', y') model =
@@ -145,11 +203,13 @@ debugInfo model =
     let m = (model.x, model.y)
         dt = round model.t
         keys = (model.kx, model.ky)
+        numBuildings = List.length model.buildings
     in
         flow down
             [ show ("mouse: " ++ toString m)
             , show ("dt: " ++ toString dt)
             , show ("keys: " ++ toString keys)
+            , show ("buildings: " ++ toString numBuildings)
             ]
                 |> toForm
 

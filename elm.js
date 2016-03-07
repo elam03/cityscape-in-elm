@@ -8153,6 +8153,7 @@ Elm.Main.make = function (_elm) {
    $List = Elm.List.make(_elm),
    $Maybe = Elm.Maybe.make(_elm),
    $Mouse = Elm.Mouse.make(_elm),
+   $Random = Elm.Random.make(_elm),
    $Result = Elm.Result.make(_elm),
    $Signal = Elm.Signal.make(_elm),
    $Time = Elm.Time.make(_elm),
@@ -8184,6 +8185,7 @@ Elm.Main.make = function (_elm) {
                                                                                ,{ctor: "_Tuple2",_0: b.w / 2,_1: b.h / 2}]))))]));
    };
    var debugInfo = function (model) {
+      var numBuildings = $List.length(model.buildings);
       var keys = {ctor: "_Tuple2",_0: model.kx,_1: model.ky};
       var dt = $Basics.round(model.t);
       var m = {ctor: "_Tuple2",_0: model.x,_1: model.y};
@@ -8197,7 +8199,10 @@ Elm.Main.make = function (_elm) {
               $Basics.toString(dt)))
               ,$Graphics$Element.show(A2($Basics._op["++"],
               "keys: ",
-              $Basics.toString(keys)))])));
+              $Basics.toString(keys)))
+              ,$Graphics$Element.show(A2($Basics._op["++"],
+              "buildings: ",
+              $Basics.toString(numBuildings)))])));
    };
    var view = F2(function (_p0,model) {
       var _p1 = _p0;
@@ -8244,17 +8249,26 @@ Elm.Main.make = function (_elm) {
       return _U.update(model,
       {x: $Basics.toFloat(_p5._0),y: $Basics.toFloat(_p5._1)});
    });
-   var keysUpdate = F2(function (keys,model) {
-      return _U.update(model,
-      {kx: model.kx + keys.x,ky: model.ky + keys.y});
+   var getRandomHeight = function (seed) {
+      return $Basics.fst(A2($Random.generate,
+      A2($Random.$float,40,80),
+      seed));
+   };
+   var getRandomInt = F3(function (model,min,max) {
+      var tuple = A2($Random.generate,
+      A2($Random.$int,min,max),
+      model.seed);
+      var value = $Basics.fst(tuple);
+      var updatedModel = _U.update(model,{seed: $Basics.snd(tuple)});
+      return {ctor: "_Tuple2",_0: value,_1: updatedModel};
    });
-   var update = F2(function (_p6,model) {
-      var _p7 = _p6;
-      return A2(keysUpdate,
-      _p7._1,
-      A2(mouseUpdate,
-      {ctor: "_Tuple2",_0: _p7._2._0,_1: _p7._2._1},
-      A2(timeUpdate,_p7._0,model)));
+   var getRandomFloat = F3(function (model,min,max) {
+      var tuple = A2($Random.generate,
+      A2($Random.$float,min,max),
+      model.seed);
+      var value = $Basics.fst(tuple);
+      var updatedModel = _U.update(model,{seed: $Basics.snd(tuple)});
+      return {ctor: "_Tuple2",_0: value,_1: updatedModel};
    });
    var Building = F5(function (a,b,c,d,e) {
       return {x: a,y: b,w: c,h: d,layer: e};
@@ -8263,48 +8277,85 @@ Elm.Main.make = function (_elm) {
    var Back = {ctor: "Back"};
    var Middle = {ctor: "Middle"};
    var Front = {ctor: "Front"};
-   var building = function (id) {
-      return {x: $Basics.toFloat(id * 50)
+   var building = F2(function (seed,pos) {
+      return {x: $Basics.toFloat(pos * 50)
              ,y: 0
              ,w: 40
-             ,h: 80
+             ,h: getRandomHeight(seed)
              ,layer: Front};
-   };
-   var generateBuildings = function (list) {
-      var _p8 = list;
-      if (_p8.ctor === "[]") {
+   });
+   var generateBuildings = F2(function (seed,list) {
+      var _p6 = list;
+      if (_p6.ctor === "[]") {
             return _U.list([]);
          } else {
             return A2($List.append,
-            _U.list([building(_p8._0)]),
-            generateBuildings(_p8._1));
+            _U.list([A2(building,seed,_p6._0)]),
+            A2(generateBuildings,seed,_p6._1));
          }
+   });
+   var newBuilding = F2(function (pos,height) {
+      return {x: $Basics.toFloat(pos * 50)
+             ,y: 0
+             ,w: 40
+             ,h: $Basics.toFloat(height)
+             ,layer: Front};
+   });
+   var generateBuildings2 = function (model$) {
+      var tuple = {ctor: "_Tuple2",_0: 20,_1: model$};
+      var model = $Basics.snd(tuple);
+      var pos = $List.length(model.buildings);
+      var height = pos * 4;
+      return _U.update(model,
+      {buildings: A2($List.append,
+      model.buildings,
+      _U.list([A2(newBuilding,pos,height)]))});
    };
-   var newBuilding = {x: 50,y: 0,w: 40,h: 80,layer: Front};
-   var initialModel = {x: 0
-                      ,y: 0
-                      ,kx: 0
-                      ,ky: 0
-                      ,t: 0
-                      ,buildings: generateBuildings(_U.range(-5,5))};
+   var keysUpdate = F2(function (keys,model) {
+      var m = _U.update(model,
+      {kx: model.kx + keys.x,ky: model.ky + keys.y});
+      return _U.cmp(keys.y,0) > 0 ? generateBuildings2(m) : m;
+   });
+   var update = F2(function (_p7,model) {
+      var _p8 = _p7;
+      return A2(keysUpdate,
+      _p8._1,
+      A2(mouseUpdate,
+      {ctor: "_Tuple2",_0: _p8._2._0,_1: _p8._2._1},
+      A2(timeUpdate,_p8._0,model)));
+   });
+   var initialModel = function () {
+      var initialSeed = $Random.initialSeed(42);
+      return {x: 0
+             ,y: 0
+             ,kx: 0
+             ,ky: 0
+             ,t: 0
+             ,seed: initialSeed
+             ,buildings: _U.list([])};
+   }();
    var main = A3($Signal.map2,
    view,
    $Window.dimensions,
    A3($Signal.foldp,update,initialModel,input));
-   var Model = F6(function (a,b,c,d,e,f) {
-      return {x: a,y: b,kx: c,ky: d,t: e,buildings: f};
+   var Model = F7(function (a,b,c,d,e,f,g) {
+      return {x: a,y: b,kx: c,ky: d,t: e,seed: f,buildings: g};
    });
    return _elm.Main.values = {_op: _op
                              ,Model: Model
                              ,initialModel: initialModel
+                             ,generateBuildings2: generateBuildings2
                              ,Front: Front
                              ,Middle: Middle
                              ,Back: Back
                              ,Keys: Keys
                              ,Building: Building
+                             ,getRandomFloat: getRandomFloat
+                             ,getRandomInt: getRandomInt
+                             ,getRandomHeight: getRandomHeight
                              ,building: building
-                             ,generateBuildings: generateBuildings
                              ,newBuilding: newBuilding
+                             ,generateBuildings: generateBuildings
                              ,update: update
                              ,keysUpdate: keysUpdate
                              ,mouseUpdate: mouseUpdate
