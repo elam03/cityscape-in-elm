@@ -17,6 +17,9 @@ type alias Model =
     ,   t : Float
     ,   seed : Random.Seed
     ,   buildings : List Building
+    ,   numBuildingsToAdd : Int
+    ,   randomValues : List Float
+    ,   randomValueIndex : Int
     }
 
 initialModel : Model
@@ -33,20 +36,10 @@ initialModel =
         -- , buildings = generateBuildings [getRandomFloat , getRandomFloat]
         -- , buildings = generateBuildings initialSeed [-5..5]
         , buildings = []
+        , numBuildingsToAdd = 10
+        , randomValues = []
+        , randomValueIndex = 0
         }
-
-generateBuildings2 : Model -> Model
-generateBuildings2 model' =
-    -- model
-    let
-        -- tuple = getRandomInt model 20 40
-        tuple = (20, model')
-        pos = (List.length model.buildings)
-        -- height = fst tuple
-        height = pos * 4
-        model = snd tuple
-    in
-        { model | buildings = List.append model.buildings [(newBuilding pos height)] }
 
 type Layer = Front | Middle | Back
 type alias Keys = { x:Int, y:Int }
@@ -59,86 +52,14 @@ type alias Building =
     , layer : Layer
     }
 
-getRandomFloat : Model -> Float -> Float -> (Float, Model)
-getRandomFloat model min max =
-    let
-        tuple = Random.generate (Random.float min max) model.seed
-        value = fst tuple
-        updatedModel = { model | seed = snd tuple }
-    in
-        (value, updatedModel)
-
-getRandomInt : Model -> Int -> Int -> (Int, Model)
-getRandomInt model min max =
-    let
-        tuple = Random.generate (Random.int min max) model.seed
-        value = fst tuple
-        updatedModel = { model | seed = snd tuple }
-    in
-        (value, updatedModel)
-
-getRandomHeight : Random.Seed -> Float
-getRandomHeight seed =
-    seed
-        |> Random.generate (Random.float 40 80)
-        |> fst
-
-building : Random.Seed -> Int -> Building
-building seed pos =
-    { x = toFloat (pos * 50)
+newBuilding : Float -> Float -> Building
+newBuilding x' y' =
+    { x = x'
     , y = 0
     , w = 40
-    , h = getRandomHeight seed
+    , h = y'
     , layer = Front
     }
-
-newBuilding : Int -> Int -> Building
-newBuilding pos height =
-    { x = toFloat (pos * 50)
-    , y = 0
-    , w = 40
-    , h = toFloat height
-    , layer = Front
-    }
-
-generateBuildings : Random.Seed -> List (Int) -> List Building
-generateBuildings seed list =
-    case list of
-        [] ->
-            []
-
-        first :: rest ->
-            -- (building [first]) + generateBuildings rest
-            List.append [building seed first] (generateBuildings seed rest)
-            -- List.append ([ building 0 ] (generateBuildings rest))
-    -- if count == 0 then
-    --     building count
-    -- else then
-    --     (generateBuildings count - 1)
-
--- newBuilding : Building
--- newBuilding =
---     { x = 50
---     , y = 0
---     , w = 40
---     , h = 80
---     , layer = Front
---     }
-
--- seed = Random.initialSeed 42
-
--- randomLayer : Random.Generator Layer
--- randomLayer =
---     map ( \b -> if b then Front else Back) Random.bool
-
--- newBuilding : Building
--- newBuilding =
---     { x = 42--Random.generate (Random.float -300 300) seed
---     , y = 0
---     , w = 42--Random.generate (Random.float 30 60) seed
---     , h = 42--Random.generate (Random.float 30 150) seed
---     , layer = Front--randomLayer
---     }
 
 -- UPDATE
 
@@ -148,18 +69,65 @@ update (dt, keys, (mx,my)) model =
         |> timeUpdate dt
         |> mouseUpdate (mx, my)
         |> keysUpdate keys
+        |> randomUpdate
+        |> addBuildingsUpdate
+
+getRandomFloat : Float -> Float -> Model -> (Float, Model)
+getRandomFloat min max model =
+    let value = Maybe.withDefault 0.5 (List.head model.randomValues)
+        modifiedModel =
+        { model | randomValueIndex = model.randomValueIndex + 1
+        }
+    in
+        (min + value * max, modifiedModel)
+
+
+randomUpdate : Model -> Model
+randomUpdate model =
+    let generator = Random.list 10 (Random.float 0 1)
+        tuple = Random.generate generator model.seed
+        vs = fst tuple
+        newSeed = snd tuple
+        modifiedModel =
+            { model | seed = newSeed
+            ,         randomValues = vs
+            ,         randomValueIndex = 0
+            }
+    in
+        modifiedModel
+
+increment : Bool -> Int
+increment condition =
+    if condition then
+        1
+    else
+        0
 
 keysUpdate : Keys -> Model -> Model
 keysUpdate keys model =
-    let m =
-        { model | kx = model.kx + keys.x
-        ,         ky = model.ky + keys.y
-        }
-    in
-        if keys.y > 0 then
-            generateBuildings2 m
-        else
-            m
+    { model | kx = keys.x
+    ,         ky = keys.y
+    ,         numBuildingsToAdd = model.numBuildingsToAdd + increment (keys.x > 0)
+    }
+
+addBuildingsUpdate : Model -> Model
+addBuildingsUpdate model =
+    if model.numBuildingsToAdd > 0 then
+        let
+            tuple = getRandomFloat -300 300 model
+            x = fst tuple
+            modifiedModel2 = snd tuple
+
+            tuple2 = getRandomFloat 30 500 modifiedModel2
+            h = fst tuple2
+            modifiedModel = snd tuple
+        in
+            { modifiedModel | buildings = List.append modifiedModel.buildings [newBuilding x h]
+            ,                 numBuildingsToAdd = modifiedModel.numBuildingsToAdd - 1
+            -- ,                 x = v
+            }
+    else
+        model
 
 mouseUpdate : (Int, Int) -> Model -> Model
 mouseUpdate (x', y') model =
@@ -184,8 +152,8 @@ view (w',h') model =
     let (dx, dy) = (model.x, -model.y)
         buildings = List.map displayBuilding model.buildings
         things = buildings ++
-            [ debugInfo model
-                |> move (toFloat (-w') / 3, toFloat (w') / 3)
+            [ displayModelInfo model
+                |> move (toFloat (-w') / 3, toFloat (h') / 3)
             , ngon 3 5
                 |> filled red
                 |> move (dx,dy)
@@ -198,18 +166,22 @@ main : Signal Element
 main =
     map2 view Window.dimensions (foldp update initialModel input)
 
-debugInfo : Model -> Form
-debugInfo model =
+displayModelInfo : Model -> Form
+displayModelInfo model =
     let m = (model.x, model.y)
         dt = round model.t
         keys = (model.kx, model.ky)
-        numBuildings = List.length model.buildings
+        -- numBuildings = List.length model.buildings
     in
         flow down
             [ show ("mouse: " ++ toString m)
             , show ("dt: " ++ toString dt)
             , show ("keys: " ++ toString keys)
-            , show ("buildings: " ++ toString numBuildings)
+            , show ("buildings: " ++ toString (List.length model.buildings))
+            -- , show ("randomValues: " ++ toString model.randomValues)
+            , show ("numBuildingsToAdd: " ++ toString model.numBuildingsToAdd)
+            , show ("randomValueIndex: " ++ toString model.randomValueIndex)
+
             ]
                 |> toForm
 
@@ -221,11 +193,6 @@ darkGrey : Color
 darkGrey =
     rgba 50 50 50 0.6
 
--- displayBuilding : Building -> Form
--- displayBuilding b =
---     displayBuilding b.x b.y b.w b.h
-
--- displayBuilding : Float -> Float -> Float -> Float -> Form
 displayBuilding : Building -> Form
 displayBuilding b =
     let topWidth = b.w / 10
@@ -248,27 +215,6 @@ displayBuilding b =
         --         |> move (0,0)
         --         |> rotate (degrees (90))
         ]
-
--- buildingDebug : (Float,Float) -> Form
--- buildingDebug (x,y) =
---     let w = 50
---         h = 100
---         topWidth = 50
---         topHeight = 5
---     in
---         group
---         [ rect w h
---             |> filled clearGrey
---             |> move (x + w, 0)
---         , polygon
---             [ (0, 0)
---             , (topWidth, 0)
---             , (topWidth - topHeight, h / 8)
---             , (topHeight, h / 8)
---             ]
---                 |> filled darkGrey
---                 |> move (x + topWidth / 2, h / 2)
---         ]
 
 -- texturedBuilding : Form
 -- texturedBuilding =
