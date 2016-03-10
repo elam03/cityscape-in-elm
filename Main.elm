@@ -53,11 +53,11 @@ type alias Building =
     }
 
 newBuilding : Float -> Float -> Building
-newBuilding x' y' =
+newBuilding x' h' =
     { x = x'
     , y = 0
     , w = 40
-    , h = y'
+    , h = h'
     , layer = Front
     }
 
@@ -81,10 +81,13 @@ getRandomFloat min max model =
     in
         (min + value * max, modifiedModel)
 
+-- getRandomFloat : Model -> Model
+-- getRandomFloat model =
+--     model
 
 randomUpdate : Model -> Model
 randomUpdate model =
-    let generator = Random.list 10 (Random.float 0 1)
+    let generator = Random.list 100 (Random.float 0 1)
         tuple = Random.generate generator model.seed
         vs = fst tuple
         newSeed = snd tuple
@@ -122,7 +125,7 @@ addBuildingsUpdate model =
             h = fst tuple2
             modifiedModel = snd tuple
         in
-            { modifiedModel | buildings = List.append modifiedModel.buildings [newBuilding x h]
+            { modifiedModel | buildings = modifiedModel.buildings ++ [newBuilding x h]
             ,                 numBuildingsToAdd = modifiedModel.numBuildingsToAdd - 1
             -- ,                 x = v
             }
@@ -151,14 +154,14 @@ view : (Int,Int) -> Model -> Element
 view (w',h') model =
     let (dx, dy) = (model.x, -model.y)
         buildings = List.map displayBuilding model.buildings
-        things = buildings ++
-            [ displayModelInfo model
-                |> move (toFloat (-w') / 3, toFloat (h') / 3)
-            , ngon 3 5
-                |> filled red
-                |> move (dx,dy)
-                |> rotate (degrees model.t)
-            ]
+        things = buildings ++ (displayModelInfo model)
+            -- [ displayModelInfo model
+            --     |> move (toFloat (-w') / 3, toFloat (h') / 3)
+            -- , ngon 3 5
+            --     |> filled red
+            --     |> move (dx,dy)
+            --     |> rotate (degrees model.t)
+            -- ]
     in
         collage w' h' things
 
@@ -166,24 +169,36 @@ main : Signal Element
 main =
     map2 view Window.dimensions (foldp update initialModel input)
 
-displayModelInfo : Model -> Form
+displayModelInfo : Model -> List Form
 displayModelInfo model =
     let m = (model.x, model.y)
         dt = round model.t
         keys = (model.kx, model.ky)
         -- numBuildings = List.length model.buildings
-    in
-        flow down
-            [ show ("mouse: " ++ toString m)
-            , show ("dt: " ++ toString dt)
-            , show ("keys: " ++ toString keys)
-            , show ("buildings: " ++ toString (List.length model.buildings))
-            -- , show ("randomValues: " ++ toString model.randomValues)
-            , show ("numBuildingsToAdd: " ++ toString model.numBuildingsToAdd)
-            , show ("randomValueIndex: " ++ toString model.randomValueIndex)
+        formsToDisplay =
+                [ show ("mouse: " ++ toString m)
+                , show ("dt: " ++ toString dt)
+                , show ("keys: " ++ toString keys)
+                , show ("buildings: " ++ toString (List.length model.buildings))
+                -- , show ("randomValues: " ++ toString model.randomValues)
+                , show ("numBuildingsToAdd: " ++ toString model.numBuildingsToAdd)
+                , show ("randomValueIndex: " ++ toString model.randomValueIndex)
+                ]
 
-            ]
-                |> toForm
+        -- randomValues = List.map displayRandomValue ( (List.map2 (,) [1..(List.length model.randomValues)] model.randomValues) )
+
+        randomValues = model.randomValues
+                            |> List.map2 (,) [1..(List.length model.randomValues)]
+                            |> List.map displayRandomValue
+    in
+        [ toForm <| flow down formsToDisplay ] ++ randomValues
+
+displayRandomValue : (Int, Float) -> Form
+displayRandomValue (x', value') =
+    let x = toFloat x'
+    in
+        traced (solid red) (path [ (x, 0), (x, value' * 100) ])
+            -- |> rotate (degrees (value * 360))
 
 clearGrey : Color
 clearGrey =
@@ -195,21 +210,21 @@ darkGrey =
 
 displayBuilding : Building -> Form
 displayBuilding b =
-    let topWidth = b.w / 10
-        topHeight = b.h / 10
+    let topWidth = b.w
+        topHeight = 10
     in
         group
         [   rect b.w (b.h - topHeight * 2)
                 |> filled clearGrey
-                |> move (b.x, b.y)
+                |> move (b.x, b.y + b.h / 2 - topHeight)
         ,   polygon
-                [ (-b.w / 2, b.h / 2)
-                , (-b.w / 2 + topWidth, b.h / 2 + topHeight)
-                , ( b.w / 2 - topWidth, b.h / 2 + topHeight)
-                , ( b.w / 2, b.h / 2)
+                [ (-b.w / 2, b.h)
+                , ( b.w / 2, b.h)
+                , (-b.w / 2 + topWidth, b.h + topHeight)
+                , ( b.w / 2 - topWidth, b.h + topHeight)
                 ]
                     |> filled darkGrey
-                    |> move (b.x, b.y - topHeight)
+                    |> move (b.x, b.y - topHeight * 2)
         -- ,   ngon 3 50
         --         |> filled clearGrey
         --         |> move (0,0)

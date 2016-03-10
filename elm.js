@@ -8162,76 +8162,82 @@ Elm.Main.make = function (_elm) {
    var darkGrey = A4($Color.rgba,50,50,50,0.6);
    var clearGrey = A4($Color.rgba,111,111,111,0.6);
    var displayBuilding = function (b) {
-      var topHeight = b.h / 10;
-      var topWidth = b.w / 10;
+      var topHeight = 10;
+      var topWidth = b.w;
       return $Graphics$Collage.group(_U.list([A2($Graphics$Collage.move,
-                                             {ctor: "_Tuple2",_0: b.x,_1: b.y},
+                                             {ctor: "_Tuple2",_0: b.x,_1: b.y + b.h / 2 - topHeight},
                                              A2($Graphics$Collage.filled,
                                              clearGrey,
                                              A2($Graphics$Collage.rect,b.w,b.h - topHeight * 2)))
                                              ,A2($Graphics$Collage.move,
-                                             {ctor: "_Tuple2",_0: b.x,_1: b.y - topHeight},
+                                             {ctor: "_Tuple2",_0: b.x,_1: b.y - topHeight * 2},
                                              A2($Graphics$Collage.filled,
                                              darkGrey,
                                              $Graphics$Collage.polygon(_U.list([{ctor: "_Tuple2"
                                                                                 ,_0: (0 - b.w) / 2
-                                                                                ,_1: b.h / 2}
+                                                                                ,_1: b.h}
+                                                                               ,{ctor: "_Tuple2",_0: b.w / 2,_1: b.h}
                                                                                ,{ctor: "_Tuple2"
                                                                                 ,_0: (0 - b.w) / 2 + topWidth
-                                                                                ,_1: b.h / 2 + topHeight}
+                                                                                ,_1: b.h + topHeight}
                                                                                ,{ctor: "_Tuple2"
                                                                                 ,_0: b.w / 2 - topWidth
-                                                                                ,_1: b.h / 2 + topHeight}
-                                                                               ,{ctor: "_Tuple2",_0: b.w / 2,_1: b.h / 2}]))))]));
+                                                                                ,_1: b.h + topHeight}]))))]));
+   };
+   var displayRandomValue = function (_p0) {
+      var _p1 = _p0;
+      var x = $Basics.toFloat(_p1._0);
+      return A2($Graphics$Collage.traced,
+      $Graphics$Collage.solid($Color.red),
+      $Graphics$Collage.path(_U.list([{ctor: "_Tuple2",_0: x,_1: 0}
+                                     ,{ctor: "_Tuple2",_0: x,_1: _p1._1 * 100}])));
    };
    var displayModelInfo = function (model) {
+      var randomValues = A2($List.map,
+      displayRandomValue,
+      A3($List.map2,
+      F2(function (v0,v1) {
+         return {ctor: "_Tuple2",_0: v0,_1: v1};
+      }),
+      _U.range(1,$List.length(model.randomValues)),
+      model.randomValues));
       var keys = {ctor: "_Tuple2",_0: model.kx,_1: model.ky};
       var dt = $Basics.round(model.t);
       var m = {ctor: "_Tuple2",_0: model.x,_1: model.y};
-      return $Graphics$Collage.toForm(A2($Graphics$Element.flow,
+      var formsToDisplay = _U.list([$Graphics$Element.show(A2($Basics._op["++"],
+                                   "mouse: ",
+                                   $Basics.toString(m)))
+                                   ,$Graphics$Element.show(A2($Basics._op["++"],
+                                   "dt: ",
+                                   $Basics.toString(dt)))
+                                   ,$Graphics$Element.show(A2($Basics._op["++"],
+                                   "keys: ",
+                                   $Basics.toString(keys)))
+                                   ,$Graphics$Element.show(A2($Basics._op["++"],
+                                   "buildings: ",
+                                   $Basics.toString($List.length(model.buildings))))
+                                   ,$Graphics$Element.show(A2($Basics._op["++"],
+                                   "numBuildingsToAdd: ",
+                                   $Basics.toString(model.numBuildingsToAdd)))
+                                   ,$Graphics$Element.show(A2($Basics._op["++"],
+                                   "randomValueIndex: ",
+                                   $Basics.toString(model.randomValueIndex)))]);
+      return A2($Basics._op["++"],
+      _U.list([$Graphics$Collage.toForm(A2($Graphics$Element.flow,
       $Graphics$Element.down,
-      _U.list([$Graphics$Element.show(A2($Basics._op["++"],
-              "mouse: ",
-              $Basics.toString(m)))
-              ,$Graphics$Element.show(A2($Basics._op["++"],
-              "dt: ",
-              $Basics.toString(dt)))
-              ,$Graphics$Element.show(A2($Basics._op["++"],
-              "keys: ",
-              $Basics.toString(keys)))
-              ,$Graphics$Element.show(A2($Basics._op["++"],
-              "buildings: ",
-              $Basics.toString($List.length(model.buildings))))
-              ,$Graphics$Element.show(A2($Basics._op["++"],
-              "numBuildingsToAdd: ",
-              $Basics.toString(model.numBuildingsToAdd)))
-              ,$Graphics$Element.show(A2($Basics._op["++"],
-              "randomValueIndex: ",
-              $Basics.toString(model.randomValueIndex)))])));
+      formsToDisplay))]),
+      randomValues);
    };
-   var view = F2(function (_p0,model) {
-      var _p1 = _p0;
-      var _p4 = _p1._0;
-      var _p3 = _p1._1;
+   var view = F2(function (_p2,model) {
+      var _p3 = _p2;
       var buildings = A2($List.map,displayBuilding,model.buildings);
-      var _p2 = {ctor: "_Tuple2",_0: model.x,_1: 0 - model.y};
-      var dx = _p2._0;
-      var dy = _p2._1;
       var things = A2($Basics._op["++"],
       buildings,
-      _U.list([A2($Graphics$Collage.move,
-              {ctor: "_Tuple2"
-              ,_0: $Basics.toFloat(0 - _p4) / 3
-              ,_1: $Basics.toFloat(_p3) / 3},
-              displayModelInfo(model))
-              ,A2($Graphics$Collage.rotate,
-              $Basics.degrees(model.t),
-              A2($Graphics$Collage.move,
-              {ctor: "_Tuple2",_0: dx,_1: dy},
-              A2($Graphics$Collage.filled,
-              $Color.red,
-              A2($Graphics$Collage.ngon,3,5))))]));
-      return A3($Graphics$Collage.collage,_p4,_p3,things);
+      displayModelInfo(model));
+      var _p4 = {ctor: "_Tuple2",_0: model.x,_1: 0 - model.y};
+      var dx = _p4._0;
+      var dy = _p4._1;
+      return A3($Graphics$Collage.collage,_p3._0,_p3._1,things);
    });
    var input = function () {
       var delta = A2($Signal.map,
@@ -8266,7 +8272,7 @@ Elm.Main.make = function (_elm) {
       0) > 0)});
    });
    var randomUpdate = function (model) {
-      var generator = A2($Random.list,10,A2($Random.$float,0,1));
+      var generator = A2($Random.list,100,A2($Random.$float,0,1));
       var tuple = A2($Random.generate,generator,model.seed);
       var vs = $Basics.fst(tuple);
       var newSeed = $Basics.snd(tuple);
@@ -8291,8 +8297,8 @@ Elm.Main.make = function (_elm) {
    var Back = {ctor: "Back"};
    var Middle = {ctor: "Middle"};
    var Front = {ctor: "Front"};
-   var newBuilding = F2(function (x$,y$) {
-      return {x: x$,y: 0,w: 40,h: y$,layer: Front};
+   var newBuilding = F2(function (x$,h$) {
+      return {x: x$,y: 0,w: 40,h: h$,layer: Front};
    });
    var addBuildingsUpdate = function (model) {
       if (_U.cmp(model.numBuildingsToAdd,0) > 0) {
@@ -8303,7 +8309,7 @@ Elm.Main.make = function (_elm) {
             var h = $Basics.fst(tuple2);
             var modifiedModel = $Basics.snd(tuple);
             return _U.update(modifiedModel,
-            {buildings: A2($List.append,
+            {buildings: A2($Basics._op["++"],
             modifiedModel.buildings,
             _U.list([A2(newBuilding,x,h)]))
             ,numBuildingsToAdd: modifiedModel.numBuildingsToAdd - 1});
@@ -8385,6 +8391,7 @@ Elm.Main.make = function (_elm) {
                              ,view: view
                              ,main: main
                              ,displayModelInfo: displayModelInfo
+                             ,displayRandomValue: displayRandomValue
                              ,clearGrey: clearGrey
                              ,darkGrey: darkGrey
                              ,displayBuilding: displayBuilding};
