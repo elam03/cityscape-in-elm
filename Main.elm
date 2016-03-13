@@ -1,3 +1,4 @@
+import Array
 import Color exposing (..)
 import Graphics.Collage exposing (..)
 import Graphics.Element exposing (..)
@@ -18,8 +19,7 @@ type alias Model =
     ,   seed : Random.Seed
     ,   buildings : List Building
     ,   numBuildingsToAdd : Int
-    ,   randomValues : List Float
-    ,   randomValueIndex : Int
+    ,   randomValues : Array.Array Float
     }
 
 initialModel : Model
@@ -37,8 +37,7 @@ initialModel =
         -- , buildings = generateBuildings initialSeed [-5..5]
         , buildings = []
         , numBuildingsToAdd = 10
-        , randomValues = []
-        , randomValueIndex = 0
+        , randomValues = Array.fromList []
         }
 
 type Layer = Front | Middle | Back
@@ -72,29 +71,15 @@ update (dt, keys, (mx,my)) model =
         |> randomUpdate
         |> addBuildingsUpdate
 
-getRandomFloat : Float -> Float -> Model -> (Float, Model)
-getRandomFloat min max model =
-    let value = Maybe.withDefault 0.5 (List.head model.randomValues)
-        modifiedModel =
-        { model | randomValueIndex = model.randomValueIndex + 1
-        }
-    in
-        (min + value * max, modifiedModel)
-
--- getRandomFloat : Model -> Model
--- getRandomFloat model =
---     model
-
 randomUpdate : Model -> Model
 randomUpdate model =
     let generator = Random.list 100 (Random.float 0 1)
         tuple = Random.generate generator model.seed
-        vs = fst tuple
+        vs = Array.fromList (fst tuple)
         newSeed = snd tuple
         modifiedModel =
             { model | seed = newSeed
             ,         randomValues = vs
-            ,         randomValueIndex = 0
             }
     in
         modifiedModel
@@ -113,22 +98,49 @@ keysUpdate keys model =
     ,         numBuildingsToAdd = model.numBuildingsToAdd + increment (keys.x > 0)
     }
 
+-- getRandomValues : Model -> Int -> List Float
+-- getRandomValues model numRandomValues =
+
+getNumBuildings : Model -> Int
+getNumBuildings model =
+    List.length model.buildings
+
+getRandomValues : Model -> Int -> Array.Array Float
+getRandomValues model numValues =
+    Array.slice 0 numValues model.randomValues
+
+popRandomValues : Int -> Model -> Model
+popRandomValues numOfValuesToPop model =
+    { model | randomValues = Array.slice numOfValuesToPop (Array.length model.randomValues) model.randomValues
+    }
+
+toValue : Float -> Float -> Maybe Float -> Float
+toValue min max v =
+    (Maybe.withDefault 0.5 v) * (max - min) + min
+
+addBuilding : Model -> Building -> Model
+addBuilding model building =
+    { model | buildings = model.buildings ++ [ building ] }
+
+reduceNewBuildingCount : Model -> Model
+reduceNewBuildingCount model =
+    { model | numBuildingsToAdd = model.numBuildingsToAdd - 1 }
+
 addBuildingsUpdate : Model -> Model
 addBuildingsUpdate model =
     if model.numBuildingsToAdd > 0 then
         let
-            tuple = getRandomFloat -300 300 model
-            x = fst tuple
-            modifiedModel2 = snd tuple
+            randomValues = getRandomValues model 2
 
-            tuple2 = getRandomFloat 30 500 modifiedModel2
-            h = fst tuple2
-            modifiedModel = snd tuple
+            x = toValue -300 300 <| Array.get 0 randomValues
+            h = toValue 50 500 <| Array.get 1 randomValues
+
+            modifiedModel = popRandomValues 2 model
         in
-            { modifiedModel | buildings = modifiedModel.buildings ++ [newBuilding x h]
-            ,                 numBuildingsToAdd = modifiedModel.numBuildingsToAdd - 1
-            -- ,                 x = v
-            }
+            newBuilding x h |> addBuilding modifiedModel |> reduceNewBuildingCount
+            -- { modifiedModel | buildings = modifiedModel.buildings ++ [newBuilding x h]
+            -- ,                 numBuildingsToAdd = modifiedModel.numBuildingsToAdd - 1
+            -- }
     else
         model
 
@@ -182,13 +194,13 @@ displayModelInfo model =
                 , show ("buildings: " ++ toString (List.length model.buildings))
                 -- , show ("randomValues: " ++ toString model.randomValues)
                 , show ("numBuildingsToAdd: " ++ toString model.numBuildingsToAdd)
-                , show ("randomValueIndex: " ++ toString model.randomValueIndex)
                 ]
 
         -- randomValues = List.map displayRandomValue ( (List.map2 (,) [1..(List.length model.randomValues)] model.randomValues) )
 
         randomValues = model.randomValues
-                            |> List.map2 (,) [1..(List.length model.randomValues)]
+                            |> Array.toList
+                            |> List.map2 (,) [1..(Array.length model.randomValues)]
                             |> List.map displayRandomValue
     in
         [ toForm <| flow down formsToDisplay ] ++ randomValues
