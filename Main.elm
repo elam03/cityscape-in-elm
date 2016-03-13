@@ -20,6 +20,8 @@ type alias Model =
     ,   buildings : List Building
     ,   numBuildingsToAdd : Int
     ,   randomValues : Array.Array Float
+    ,   windowWidth : Int
+    ,   windowHeight : Int
     }
 
 initialModel : Model
@@ -33,15 +35,22 @@ initialModel =
         , ky = 0
         , t = 0
         , seed = initialSeed
-        -- , buildings = generateBuildings [getRandomFloat , getRandomFloat]
-        -- , buildings = generateBuildings initialSeed [-5..5]
         , buildings = []
         , numBuildingsToAdd = 10
         , randomValues = Array.fromList []
+        , windowWidth = 0
+        , windowHeight = 0
         }
 
 type Layer = Front | Middle | Back
 type alias Keys = { x:Int, y:Int }
+
+type alias GlassWindow =
+    { x : Float
+    , y : Float
+    , w : Float
+    , h : Float
+    }
 
 type alias Building =
     { x : Float
@@ -49,27 +58,61 @@ type alias Building =
     , w : Float
     , h : Float
     , layer : Layer
+    , windows : List GlassWindow
     }
 
 newBuilding : Float -> Float -> Building
 newBuilding x' h' =
     { x = x'
     , y = 0
-    , w = 40
+    , w = buildingWidth
     , h = h'
     , layer = Front
+    , windows = generateGlassWindows h'
+        -- Array.fromList
+        -- [   newGlassWindow 5 0 glassWindowSize glassWindowSize
+        -- ,   newGlassWindow 25 0 glassWindowSize glassWindowSize
+        -- ,   newGlassWindow 5 90 glassWindowSize glassWindowSize
+        -- ,   newGlassWindow 25 135 glassWindowSize glassWindowSize
+        -- ]
     }
+
+newGlassWindow : Float -> Float -> Float -> Float -> GlassWindow
+newGlassWindow x' y' w' h' =
+    {   x = x'
+    ,   y = y'
+    ,   w = w'
+    ,   h = h'
+    }
+
+glassWindowSize = 10
+buildingWidth = 40
+
+newGlassWindowPair =
+    [   newGlassWindow 5 0 glassWindowSize glassWindowSize
+    ,   newGlassWindow (buildingWidth - glassWindowSize - 5) 0 glassWindowSize glassWindowSize
+    ]
+
+generateGlassWindows : Float -> List GlassWindow
+generateGlassWindows height =
+    newGlassWindowPair ++
+    List.map (\a -> { a | y = a.y + 25 }) newGlassWindowPair
 
 -- UPDATE
 
-update : (Float, Keys, (Int, Int)) -> Model -> Model
-update (dt, keys, (mx,my)) model =
+update : (Float, Keys, (Int, Int), (Int, Int)) -> Model -> Model
+update (dt, keys, (mx,my), (ww, wh)) model =
     model
         |> timeUpdate dt
         |> mouseUpdate (mx, my)
         |> keysUpdate keys
         |> randomUpdate
         |> addBuildingsUpdate
+        |> updateWindowDimensions (ww, wh)
+
+updateWindowDimensions : (Int, Int) -> Model -> Model
+updateWindowDimensions (w, h) model =
+    { model | windowWidth = w, windowHeight = h }
 
 randomUpdate : Model -> Model
 randomUpdate model =
@@ -97,9 +140,6 @@ keysUpdate keys model =
     ,         ky = keys.y
     ,         numBuildingsToAdd = model.numBuildingsToAdd + increment (keys.x > 0)
     }
-
--- getRandomValues : Model -> Int -> List Float
--- getRandomValues model numRandomValues =
 
 getNumBuildings : Model -> Int
 getNumBuildings model =
@@ -138,9 +178,6 @@ addBuildingsUpdate model =
             modifiedModel = popRandomValues 2 model
         in
             newBuilding x h |> addBuilding modifiedModel |> reduceNewBuildingCount
-            -- { modifiedModel | buildings = modifiedModel.buildings ++ [newBuilding x h]
-            -- ,                 numBuildingsToAdd = modifiedModel.numBuildingsToAdd - 1
-            -- }
     else
         model
 
@@ -155,55 +192,79 @@ timeUpdate dt model =
     { model | t = model.t + dt
     }
 
-input : Signal (Float, Keys, (Int,Int))
+input : Signal (Float, Keys, (Int, Int), (Int, Int))
 input =
     let
-        delta = map (\t -> t / 20) (fps 30)
+        timeDelta = map (\t -> t / 20) (fps 30)
     in
-        map3 (,,) delta Keyboard.arrows Mouse.position
+        Signal.map4 (,,,) timeDelta Keyboard.arrows Mouse.position Window.dimensions
 
-view : (Int,Int) -> Model -> Element
-view (w',h') model =
-    let (dx, dy) = (model.x, -model.y)
-        buildings = List.map displayBuilding model.buildings
-        things = buildings ++ (displayModelInfo model)
-            -- [ displayModelInfo model
-            --     |> move (toFloat (-w') / 3, toFloat (h') / 3)
-            -- , ngon 3 5
-            --     |> filled red
-            --     |> move (dx,dy)
-            --     |> rotate (degrees model.t)
-            -- ]
+isBack b = b.layer == Back
+isMiddle b = b.layer == Middle
+isFront b = b.layer == Front
+
+view : Model -> Element
+view model =
+    let w' = model.windowWidth
+        h' = model.windowHeight
+        (dx, dy) = (model.x, -model.y)
+
+        -- List.filter (a -> Bool) List a
+
+        backBuildings = List.map displayBuilding (List.filter isBack model.buildings)
+        middleBuildings = List.map displayBuilding (List.filter isMiddle model.buildings)
+        -- frontBuildings = List.map displayBuilding (List.filter isFront model.buildings)
+        frontBuildings = model.buildings
+                            |> List.filter isFront
+                            |> List.map (\b -> { b | x = b.x + model.t / 10 } )
+                            |> List.map displayBuilding
+
+        -- List.map (layerShift) frontBuildings
+
+        -- List.filterMap (a -> Maybe.Maybe b) List a
+
+        things = frontBuildings ++ middleBuildings ++ backBuildings ++ (displayModelInfo model) ++ (displayMouseCursor (dx, dy) model)
     in
         collage w' h' things
 
 main : Signal Element
 main =
-    map2 view Window.dimensions (foldp update initialModel input)
+    Signal.map view (Signal.foldp update initialModel input)
+
+displayMouseCursor : (Float, Float) -> Model -> List Form
+displayMouseCursor (x, y) model =
+    let p = (x - (toFloat model.windowWidth / 2), y + (toFloat model.windowHeight / 2))
+        a = model.t
+    in
+        [ ngon 3 5 |> filled red |> move p |> rotate (degrees a)]
 
 displayModelInfo : Model -> List Form
 displayModelInfo model =
     let m = (model.x, model.y)
         dt = round model.t
         keys = (model.kx, model.ky)
-        -- numBuildings = List.length model.buildings
-        formsToDisplay =
+
+        ww = toFloat model.windowWidth
+        wh = toFloat model.windowHeight
+
+        allInfo =
                 [ show ("mouse: " ++ toString m)
                 , show ("dt: " ++ toString dt)
                 , show ("keys: " ++ toString keys)
+                , show ("win dims: " ++ toString (ww, wh))
                 , show ("buildings: " ++ toString (List.length model.buildings))
                 -- , show ("randomValues: " ++ toString model.randomValues)
-                , show ("numBuildingsToAdd: " ++ toString model.numBuildingsToAdd)
+                -- , show ("numBuildingsToAdd: " ++ toString model.numBuildingsToAdd)
                 ]
-
-        -- randomValues = List.map displayRandomValue ( (List.map2 (,) [1..(List.length model.randomValues)] model.randomValues) )
 
         randomValues = model.randomValues
                             |> Array.toList
                             |> List.map2 (,) [1..(Array.length model.randomValues)]
                             |> List.map displayRandomValue
+
+        formsToDisplay = [ toForm <| flow down allInfo ] ++ randomValues
     in
-        [ toForm <| flow down formsToDisplay ] ++ randomValues
+        formsToDisplay |> List.map (\a -> (a |> move (-ww / 2 + 80, wh / 2 - 100)))
 
 displayRandomValue : (Int, Float) -> Form
 displayRandomValue (x', value') =
@@ -220,30 +281,21 @@ darkGrey : Color
 darkGrey =
     rgba 50 50 50 0.6
 
+glassWindowToForm : GlassWindow -> Form
+glassWindowToForm window =
+    rect window.w window.h
+        |> filled darkGrey
+        |> move (window.x + window.w / 2, window.y + window.h / 2)
+
 displayBuilding : Building -> Form
 displayBuilding b =
-    let topWidth = b.w
-        topHeight = 10
-    in
-        group
-        [   rect b.w (b.h - topHeight * 2)
-                |> filled clearGrey
-                |> move (b.x, b.y + b.h / 2 - topHeight)
-        ,   polygon
-                [ (-b.w / 2, b.h)
-                , ( b.w / 2, b.h)
-                , (-b.w / 2 + topWidth, b.h + topHeight)
-                , ( b.w / 2 - topWidth, b.h + topHeight)
-                ]
-                    |> filled darkGrey
-                    |> move (b.x, b.y - topHeight * 2)
-        -- ,   ngon 3 50
-        --         |> filled clearGrey
-        --         |> move (0,0)
-        --         |> rotate (degrees (90))
-        ]
+    let windows = List.map (\a -> { a | x = a.x + b.x, y = a.y + b.y } ) b.windows
+            |> List.map glassWindowToForm
 
--- texturedBuilding : Form
--- texturedBuilding =
---     image 35 35 "minimal_industry.png"
---         |> toForm
+        allForms =
+            [   rect b.w b.h
+                    |> filled clearGrey
+                    |> move (b.x + b.w / 2, b.y + b.h / 2)
+            ] ++ windows
+    in
+        group allForms
