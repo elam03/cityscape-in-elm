@@ -1,49 +1,58 @@
 import Array
+import Char
 import Color exposing (..)
 import Graphics.Collage exposing (..)
 import Graphics.Element exposing (..)
 import Keyboard
 import Mouse
 import Random
+import Set
 import Signal exposing (..)
 import Time exposing (..)
 import Window
 
 -- MODEL
+type Layer = Front | Middle | Back
+-- type alias Keys = { x:Int, y:Int }
+type alias Keys = Set.Set Char.KeyCode
+type MovementType = TimeMove | MouseMove
+
 type alias Model =
     {   x : Float
     ,   y : Float
+    ,   dx : Float
+    ,   dy : Float
     ,   kx : Int
     ,   ky : Int
     ,   t : Float
+    ,   dt : Float
     ,   seed : Random.Seed
     ,   buildings : List Building
     ,   numBuildingsToAdd : Int
     ,   randomValues : Array.Array Float
     ,   windowWidth : Int
     ,   windowHeight : Int
+    ,   movementType : MovementType
     }
 
 initialModel : Model
 initialModel =
-    let
-        initialSeed = Random.initialSeed 42
-    in
-        { x = 0
-        , y = 0
-        , kx = 0
-        , ky = 0
-        , t = 0
-        , seed = initialSeed
-        , buildings = []
-        , numBuildingsToAdd = 10
-        , randomValues = Array.fromList []
-        , windowWidth = 0
-        , windowHeight = 0
-        }
-
-type Layer = Front | Middle | Back
-type alias Keys = { x:Int, y:Int }
+    { x = 0
+    , y = 0
+    , dx = 0
+    , dy = 0
+    , kx = 0
+    , ky = 0
+    , t = 0
+    , dt = 0
+    , seed = Random.initialSeed 42
+    , buildings = []
+    , numBuildingsToAdd = 10
+    , randomValues = Array.fromList []
+    , windowWidth = 0
+    , windowHeight = 0
+    , movementType = TimeMove
+    }
 
 type alias GlassWindow =
     { x : Float
@@ -61,20 +70,25 @@ type alias Building =
     , windows : List GlassWindow
     }
 
-newBuilding : Float -> Float -> Building
-newBuilding x' h' =
-    { x = x'
+newBuilding : Float -> Float -> Layer -> Building
+newBuilding x' h' l'=
+    { nullBuilding |
+      x = x'
     , y = 0
     , w = buildingWidth
     , h = h'
-    , layer = Front
+    , layer = l'
     , windows = generateGlassWindows h'
-        -- Array.fromList
-        -- [   newGlassWindow 5 0 glassWindowSize glassWindowSize
-        -- ,   newGlassWindow 25 0 glassWindowSize glassWindowSize
-        -- ,   newGlassWindow 5 90 glassWindowSize glassWindowSize
-        -- ,   newGlassWindow 25 135 glassWindowSize glassWindowSize
-        -- ]
+    }
+
+nullBuilding : Building
+nullBuilding =
+    { x = 0
+    , y = 0
+    , w = buildingWidth
+    , h = 0
+    , layer = Front
+    , windows = []
     }
 
 newGlassWindow : Float -> Float -> Float -> Float -> GlassWindow
@@ -101,14 +115,45 @@ generateGlassWindows height =
 -- UPDATE
 
 update : (Float, Keys, (Int, Int), (Int, Int)) -> Model -> Model
-update (dt, keys, (mx,my), (ww, wh)) model =
+update (dt, keys, (mx, my), (ww, wh)) model =
     model
+        |> updateWindowDimensions (ww, wh)
+        |> randomUpdate
         |> timeUpdate dt
         |> mouseUpdate (mx, my)
         |> keysUpdate keys
-        |> randomUpdate
         |> addBuildingsUpdate
-        |> updateWindowDimensions (ww, wh)
+        |> updateBuildings (mx, my) (ww, wh)
+
+updateBuildings : (Int, Int) -> (Int, Int) -> Model -> Model
+updateBuildings (mx, my) (w, h) model =
+    let
+        backSpeed = 3
+        middleSpeed = 2
+        frontSpeed = 1
+
+        delta =
+            case model.movementType of
+                MouseMove -> model.dx
+                TimeMove -> model.dt
+
+        backBuildings = model.buildings
+                            |> List.filter isBack
+                            |> List.map (\b -> { b | x = b.x + delta / backSpeed } )
+        middleBuildings = model.buildings
+                            |> List.filter isMiddle
+                            |> List.map (\b -> { b | x = b.x + delta / middleSpeed } )
+        frontBuildings = model.buildings
+                            |> List.filter isFront
+                            |> List.map (\b -> { b | x = b.x + delta / frontSpeed } )
+
+        updatedBuildings = wrapBuildings model.windowWidth (backBuildings ++ middleBuildings ++ frontBuildings)
+    in
+        { model | buildings = updatedBuildings }
+
+wrapBuildings : Int -> List Building -> List Building
+wrapBuildings widthWrap buildings =
+    buildings |> List.map (\b -> { b | x = toFloat (((round b.x + (widthWrap // 2)) % widthWrap) - (widthWrap // 2)) } )
 
 updateWindowDimensions : (Int, Int) -> Model -> Model
 updateWindowDimensions (w, h) model =
@@ -134,12 +179,29 @@ increment condition =
     else
         0
 
+getMovementType : MovementType -> Keys -> MovementType
+getMovementType prev keys =
+    let
+        m = Set.member (Char.toCode 'm') keys
+        t = Set.member (Char.toCode 't') keys
+    in
+        if m then
+            MouseMove
+        else if t then
+            TimeMove
+        else
+            prev
+
 keysUpdate : Keys -> Model -> Model
 keysUpdate keys model =
-    { model | kx = keys.x
-    ,         ky = keys.y
-    ,         numBuildingsToAdd = model.numBuildingsToAdd + increment (keys.x > 0)
+    { model |   numBuildingsToAdd = model.numBuildingsToAdd + increment (Set.member (Char.toCode '1') keys)
+    ,           movementType = getMovementType model.movementType keys
     }
+
+    -- { model | kx = keys.x
+    -- ,         ky = keys.y
+    -- ,         numBuildingsToAdd = model.numBuildingsToAdd + increment (keys.x > 0)
+    -- }
 
 getNumBuildings : Model -> Int
 getNumBuildings model =
@@ -166,30 +228,46 @@ reduceNewBuildingCount : Model -> Model
 reduceNewBuildingCount model =
     { model | numBuildingsToAdd = model.numBuildingsToAdd - 1 }
 
+pickLayer : Float -> Layer
+pickLayer value =
+    if value >= 66 then
+        Front
+    else if value >= 33 then
+        Middle
+    else
+        Back
+
 addBuildingsUpdate : Model -> Model
 addBuildingsUpdate model =
     if model.numBuildingsToAdd > 0 then
         let
-            randomValues = getRandomValues model 2
+            randomValues = getRandomValues model 3
 
             x = toValue -300 300 <| Array.get 0 randomValues
             h = toValue 50 500 <| Array.get 1 randomValues
+            l = pickLayer <| toValue 0 100 <| Array.get 1 randomValues
 
-            modifiedModel = popRandomValues 2 model
+            modifiedModel = popRandomValues 3 model
         in
-            newBuilding x h |> addBuilding modifiedModel |> reduceNewBuildingCount
+            newBuilding x h l |> addBuilding modifiedModel |> reduceNewBuildingCount
     else
         model
 
 mouseUpdate : (Int, Int) -> Model -> Model
-mouseUpdate (x', y') model =
-    { model | x = toFloat x'
-    ,         y = toFloat y'
-    }
+mouseUpdate (mx, my) model =
+    let
+        (px, py) = (model.x, model.y)
+    in
+        { model | x  = toFloat mx
+        ,         y  = toFloat my
+        ,         dx = toFloat mx - px
+        ,         dy = toFloat my - py
+        }
 
 timeUpdate : Float -> Model -> Model
 timeUpdate dt model =
-    { model | t = model.t + dt
+    { model |   t = model.t + dt
+    ,           dt = dt
     }
 
 input : Signal (Float, Keys, (Int, Int), (Int, Int))
@@ -197,7 +275,7 @@ input =
     let
         timeDelta = map (\t -> t / 20) (fps 30)
     in
-        Signal.map4 (,,,) timeDelta Keyboard.arrows Mouse.position Window.dimensions
+        Signal.map4 (,,,) timeDelta Keyboard.keysDown Mouse.position Window.dimensions
 
 isBack b = b.layer == Back
 isMiddle b = b.layer == Middle
@@ -205,27 +283,14 @@ isFront b = b.layer == Front
 
 view : Model -> Element
 view model =
-    let w' = model.windowWidth
-        h' = model.windowHeight
-        (dx, dy) = (model.x, -model.y)
+    let
+        (mx, my) = (model.x, -model.y)
 
-        -- List.filter (a -> Bool) List a
+        allBuildings = model.buildings |> List.map displayBuilding
 
-        backBuildings = List.map displayBuilding (List.filter isBack model.buildings)
-        middleBuildings = List.map displayBuilding (List.filter isMiddle model.buildings)
-        -- frontBuildings = List.map displayBuilding (List.filter isFront model.buildings)
-        frontBuildings = model.buildings
-                            |> List.filter isFront
-                            |> List.map (\b -> { b | x = b.x + model.t / 10 } )
-                            |> List.map displayBuilding
-
-        -- List.map (layerShift) frontBuildings
-
-        -- List.filterMap (a -> Maybe.Maybe b) List a
-
-        things = frontBuildings ++ middleBuildings ++ backBuildings ++ (displayModelInfo model) ++ (displayMouseCursor (dx, dy) model)
+        things = allBuildings ++ (displayModelInfo model) ++ (displayMouseCursor (mx, my) model)
     in
-        collage w' h' things
+        collage model.windowWidth model.windowHeight things
 
 main : Signal Element
 main =
@@ -241,18 +306,25 @@ displayMouseCursor (x, y) model =
 displayModelInfo : Model -> List Form
 displayModelInfo model =
     let m = (model.x, model.y)
-        dt = round model.t
-        keys = (model.kx, model.ky)
-
-        ww = toFloat model.windowWidth
-        wh = toFloat model.windowHeight
+        d = (model.dx, model.dy)
+        t = round model.t
+        dt = round model.dt
+        -- keys = model.keys
+        (ww, wh) = (toFloat model.windowWidth, toFloat model.windowHeight)
+        firstBuilding = List.head model.buildings |> Maybe.withDefault nullBuilding
+        movementType = model.movementType
 
         allInfo =
-                [ show ("mouse: " ++ toString m)
+                [ show ("(x,y): " ++ toString m)
+                , show ("(dx,dy): " ++ toString d)
+                , show ("t: " ++ toString t)
                 , show ("dt: " ++ toString dt)
-                , show ("keys: " ++ toString keys)
-                , show ("win dims: " ++ toString (ww, wh))
+                -- , show ("keys: " ++ toString keys)
+                , show ("(ww, wh): " ++ toString (ww, wh))
                 , show ("buildings: " ++ toString (List.length model.buildings))
+                , show ("first building: " ++ toString (round firstBuilding.x))
+                , show ("movementType: " ++ toString (movementType))
+
                 -- , show ("randomValues: " ++ toString model.randomValues)
                 -- , show ("numBuildingsToAdd: " ++ toString model.numBuildingsToAdd)
                 ]
