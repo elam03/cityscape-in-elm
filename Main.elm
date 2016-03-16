@@ -13,7 +13,6 @@ import Window
 
 -- MODEL
 type Layer = Front | Middle | Back
--- type alias Keys = { x:Int, y:Int }
 type alias Keys = Set.Set Char.KeyCode
 type MovementType = TimeMove | MouseMove
 
@@ -24,6 +23,7 @@ type alias Model =
     ,   dy : Float
     ,   kx : Int
     ,   ky : Int
+    ,   keys : List Char.KeyCode
     ,   t : Float
     ,   dt : Float
     ,   seed : Random.Seed
@@ -43,6 +43,7 @@ initialModel =
     , dy = 0
     , kx = 0
     , ky = 0
+    , keys = []
     , t = 0
     , dt = 0
     , seed = Random.initialSeed 42
@@ -179,29 +180,44 @@ increment condition =
     else
         0
 
-getMovementType : MovementType -> Keys -> MovementType
-getMovementType prev keys =
+isDown : Keys -> Char -> Bool
+isDown keys keyCode =
+    Set.member (Char.toCode keyCode) keys
+
+isDownInModel : Model -> Char -> Bool
+isDownInModel model key =
     let
-        m = Set.member (Char.toCode 'm') keys
-        t = Set.member (Char.toCode 't') keys
+        k = List.filter (\k -> Char.toUpper key == Char.fromCode k) model.keys
     in
-        if m then
-            MouseMove
-        else if t then
-            TimeMove
+        List.length k > 0
+
+keysUpdateMovementType : Keys -> Model -> Model
+keysUpdateMovementType keys model =
+    let
+        mIsDown = isDownInModel model 'M'
+        tIsDown = isDownInModel model 'T'
+    in
+        if mIsDown then
+            { model | movementType = MouseMove }
+        else if tIsDown then
+            { model | movementType = TimeMove }
         else
-            prev
+            model
+
+keysUpdateAddBuildings : Keys -> Model -> Model
+keysUpdateAddBuildings keys model =
+    { model | numBuildingsToAdd = model.numBuildingsToAdd + increment (isDown keys '1') }
+
+keysUpdateModel : Keys -> Model -> Model
+keysUpdateModel keys model =
+    { model | keys = Set.toList keys }
 
 keysUpdate : Keys -> Model -> Model
 keysUpdate keys model =
-    { model |   numBuildingsToAdd = model.numBuildingsToAdd + increment (Set.member (Char.toCode '1') keys)
-    ,           movementType = getMovementType model.movementType keys
-    }
-
-    -- { model | kx = keys.x
-    -- ,         ky = keys.y
-    -- ,         numBuildingsToAdd = model.numBuildingsToAdd + increment (keys.x > 0)
-    -- }
+    model
+        |> keysUpdateModel keys
+        |> keysUpdateAddBuildings keys
+        |> keysUpdateMovementType keys
 
 getNumBuildings : Model -> Int
 getNumBuildings model =
@@ -309,7 +325,7 @@ displayModelInfo model =
         d = (model.dx, model.dy)
         t = round model.t
         dt = round model.dt
-        -- keys = model.keys
+        keys = List.map (\key -> Char.fromCode key) model.keys
         (ww, wh) = (toFloat model.windowWidth, toFloat model.windowHeight)
         firstBuilding = List.head model.buildings |> Maybe.withDefault nullBuilding
         movementType = model.movementType
@@ -319,7 +335,7 @@ displayModelInfo model =
                 , show ("(dx,dy): " ++ toString d)
                 , show ("t: " ++ toString t)
                 , show ("dt: " ++ toString dt)
-                -- , show ("keys: " ++ toString keys)
+                , show ("keys: " ++ toString keys)
                 , show ("(ww, wh): " ++ toString (ww, wh))
                 , show ("buildings: " ++ toString (List.length model.buildings))
                 , show ("first building: " ++ toString (round firstBuilding.x))
