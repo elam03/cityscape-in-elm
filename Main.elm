@@ -100,6 +100,12 @@ newGlassWindow x' y' w' h' =
     ,   h = h'
     }
 
+newGlassWindowRecurse : Float -> List Float -> Float -> Float -> List GlassWindow
+newGlassWindowRecurse x' ys' w' h' =
+    case ys' of
+        [] -> []
+        front::rest -> [ (newGlassWindow x' front w' h') ] ++ (newGlassWindowRecurse x' rest w' h')
+
 glassWindowSize = 10
 buildingWidth = 40
 
@@ -110,8 +116,18 @@ newGlassWindowPair =
 
 generateGlassWindows : Float -> List GlassWindow
 generateGlassWindows height =
-    newGlassWindowPair ++
-    List.map (\a -> { a | y = a.y + 25 }) newGlassWindowPair
+    let
+        cols = 2
+        rows = height / (glassWindowSize * 2) - 1
+        rowsList = List.map (\v -> v * 20) [1..rows]
+
+        result1 = newGlassWindowRecurse 10 rowsList glassWindowSize glassWindowSize
+        result2 = List.map (\w -> { w | x = w.x + glassWindowSize * 2}) result1
+        result3 = List.map (\w -> { w | x = w.x - glassWindowSize / 2}) (result1 ++ result2)
+    in
+        result3
+
+        -- newGlassWindowPair ++ List.map (\a -> { a | y = a.y + 25 }) newGlassWindowPair
 
 -- UPDATE
 
