@@ -11,8 +11,9 @@ import Signal exposing (..)
 import Time exposing (..)
 import Window
 
+import Building exposing (..)
+
 -- MODEL
-type Layer = Front | Middle | Back
 type alias Keys = Set.Set Char.KeyCode
 type MovementType = TimeMove | MouseMove
 
@@ -54,80 +55,6 @@ initialModel =
     , windowHeight = 0
     , movementType = TimeMove
     }
-
-type alias GlassWindow =
-    { x : Float
-    , y : Float
-    , w : Float
-    , h : Float
-    }
-
-type alias Building =
-    { x : Float
-    , y : Float
-    , w : Float
-    , h : Float
-    , layer : Layer
-    , windows : List GlassWindow
-    }
-
-newBuilding : Float -> Float -> Layer -> Building
-newBuilding x' h' l'=
-    { nullBuilding |
-      x = x'
-    , y = 0
-    , w = buildingWidth
-    , h = h'
-    , layer = l'
-    , windows = generateGlassWindows h'
-    }
-
-nullBuilding : Building
-nullBuilding =
-    { x = 0
-    , y = 0
-    , w = buildingWidth
-    , h = 0
-    , layer = Front
-    , windows = []
-    }
-
-newGlassWindow : Float -> Float -> Float -> Float -> GlassWindow
-newGlassWindow x' y' w' h' =
-    {   x = x'
-    ,   y = y'
-    ,   w = w'
-    ,   h = h'
-    }
-
-newGlassWindowRecurse : Float -> List Float -> Float -> Float -> List GlassWindow
-newGlassWindowRecurse x' ys' w' h' =
-    case ys' of
-        [] -> []
-        front::rest -> [ (newGlassWindow x' front w' h') ] ++ (newGlassWindowRecurse x' rest w' h')
-
-glassWindowSize = 10
-buildingWidth = 40
-
-newGlassWindowPair =
-    [   newGlassWindow 5 0 glassWindowSize glassWindowSize
-    ,   newGlassWindow (buildingWidth - glassWindowSize - 5) 0 glassWindowSize glassWindowSize
-    ]
-
-generateGlassWindows : Float -> List GlassWindow
-generateGlassWindows height =
-    let
-        cols = 2
-        rows = height / (glassWindowSize * 2) - 1
-        rowsList = List.map (\v -> v * 20) [1..rows]
-
-        result1 = newGlassWindowRecurse 10 rowsList glassWindowSize glassWindowSize
-        result2 = List.map (\w -> { w | x = w.x + glassWindowSize * 2}) result1
-        result3 = List.map (\w -> { w | x = w.x - glassWindowSize / 2}) (result1 ++ result2)
-    in
-        result3
-
-        -- newGlassWindowPair ++ List.map (\a -> { a | y = a.y + 25 }) newGlassWindowPair
 
 -- UPDATE
 
@@ -191,10 +118,9 @@ randomUpdate model =
 
 increment : Bool -> Int
 increment condition =
-    if condition then
-        1
-    else
-        0
+    case condition of
+        True -> 1
+        False -> 0
 
 isDown : Keys -> Char -> Bool
 isDown keys keyCode =
@@ -305,13 +231,9 @@ timeUpdate dt model =
 input : Signal (Float, Keys, (Int, Int), (Int, Int))
 input =
     let
-        timeDelta = map (\t -> t / 20) (fps 30)
+        timeDelta = Signal.map (\t -> t / 20) (fps 30)
     in
         Signal.map4 (,,,) timeDelta Keyboard.keysDown Mouse.position Window.dimensions
-
-isBack b = b.layer == Back
-isMiddle b = b.layer == Middle
-isFront b = b.layer == Front
 
 view : Model -> Element
 view model =
@@ -356,9 +278,6 @@ displayModelInfo model =
                 , show ("buildings: " ++ toString (List.length model.buildings))
                 , show ("first building: " ++ toString (round firstBuilding.x))
                 , show ("movementType: " ++ toString (movementType))
-
-                -- , show ("randomValues: " ++ toString model.randomValues)
-                -- , show ("numBuildingsToAdd: " ++ toString model.numBuildingsToAdd)
                 ]
 
         randomValues = model.randomValues
@@ -375,7 +294,6 @@ displayRandomValue (x', value') =
     let x = toFloat x'
     in
         traced (solid red) (path [ (x, 0), (x, value' * 100) ])
-            -- |> rotate (degrees (value * 360))
 
 clearGrey : Color
 clearGrey =
