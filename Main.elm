@@ -15,7 +15,7 @@ import Building exposing (..)
 
 -- MODEL
 type alias Keys = Set.Set Char.KeyCode
-type MovementType = TimeMove | MouseMove
+type MovementType = TimeMove | MouseMove | StaticMove | NullMove
 
 type alias Model =
     {   x : Float
@@ -67,31 +67,43 @@ update (dt, keys, (mx, my), (ww, wh)) model =
         |> mouseUpdate (mx, my)
         |> keysUpdate keys
         |> addBuildingsUpdate
-        |> updateBuildings (mx, my) (ww, wh)
+        |> updateBuildingsInModel (mx, my)
 
-updateBuildings : (Int, Int) -> (Int, Int) -> Model -> Model
-updateBuildings (mx, my) (w, h) model =
+updateBuildings : Float -> Int -> (Int, Int) -> List Building -> List Building
+updateBuildings dt windowWidth (mx, my) buildings =
     let
-        backSpeed = 3
+        backSpeed   = 3
         middleSpeed = 2
-        frontSpeed = 1
+        frontSpeed  = 1
+        staticSpeed = 0
 
+        delta = dt
+
+        backBuildings = buildings
+                            |> List.filter isBack
+                            |> List.map (\b -> { b | x = b.x + delta / backSpeed } )
+        middleBuildings = buildings
+                            |> List.filter isMiddle
+                            |> List.map (\b -> { b | x = b.x + delta / middleSpeed } )
+        frontBuildings = buildings
+                            |> List.filter isFront
+                            |> List.map (\b -> { b | x = b.x + delta / frontSpeed } )
+
+        updatedBuildings = wrapBuildings windowWidth (backBuildings ++ middleBuildings ++ frontBuildings)
+    in
+        updatedBuildings
+
+updateBuildingsInModel : (Int, Int) -> Model -> Model
+updateBuildingsInModel (mx, my) model =
+    let
         delta =
             case model.movementType of
                 MouseMove -> model.dx
                 TimeMove -> model.dt
+                StaticMove -> 0
+                _ -> 0
 
-        backBuildings = model.buildings
-                            |> List.filter isBack
-                            |> List.map (\b -> { b | x = b.x + delta / backSpeed } )
-        middleBuildings = model.buildings
-                            |> List.filter isMiddle
-                            |> List.map (\b -> { b | x = b.x + delta / middleSpeed } )
-        frontBuildings = model.buildings
-                            |> List.filter isFront
-                            |> List.map (\b -> { b | x = b.x + delta / frontSpeed } )
-
-        updatedBuildings = wrapBuildings model.windowWidth (backBuildings ++ middleBuildings ++ frontBuildings)
+        updatedBuildings = updateBuildings delta model.windowWidth (mx, my) model.buildings
     in
         { model | buildings = updatedBuildings }
 
@@ -126,25 +138,29 @@ isDown : Keys -> Char -> Bool
 isDown keys keyCode =
     Set.member (Char.toCode keyCode) keys
 
-isDownInModel : Model -> Char -> Bool
-isDownInModel model key =
-    let
-        k = List.filter (\k -> Char.toUpper key == Char.fromCode k) model.keys
-    in
-        List.length k > 0
+toMovementType : Char.KeyCode -> MovementType
+toMovementType code =
+    case (Char.fromCode code) of
+        'M' -> MouseMove
+        'T' -> TimeMove
+        'S' -> StaticMove
+        _   -> NullMove
+
+getMovementType : Keys -> List MovementType
+getMovementType keys =
+    Set.toList keys
+        |> List.map toMovementType
+        |> List.filter (\a -> a /= NullMove)
 
 keysUpdateMovementType : Keys -> Model -> Model
 keysUpdateMovementType keys model =
     let
-        mIsDown = isDownInModel model 'M'
-        tIsDown = isDownInModel model 'T'
+        processedKeys = getMovementType keys
     in
-        if mIsDown then
-            { model | movementType = MouseMove }
-        else if tIsDown then
-            { model | movementType = TimeMove }
-        else
+        if processedKeys |> List.isEmpty then
             model
+        else
+            { model | movementType = processedKeys |> List.head |> Maybe.withDefault NullMove }
 
 keysUpdateAddBuildings : Keys -> Model -> Model
 keysUpdateAddBuildings keys model =
@@ -294,30 +310,3 @@ displayRandomValue (x', value') =
     let x = toFloat x'
     in
         traced (solid red) (path [ (x, 0), (x, value' * 100) ])
-
-clearGrey : Color
-clearGrey =
-    rgba 111 111 111 0.6
-
-darkGrey : Color
-darkGrey =
-    rgba 50 50 50 0.6
-
-glassWindowToForm : GlassWindow -> Form
-glassWindowToForm window =
-    rect window.w window.h
-        |> filled darkGrey
-        |> move (window.x + window.w / 2, window.y + window.h / 2)
-
-displayBuilding : Building -> Form
-displayBuilding b =
-    let windows = List.map (\a -> { a | x = a.x + b.x, y = a.y + b.y } ) b.windows
-            |> List.map glassWindowToForm
-
-        allForms =
-            [   rect b.w b.h
-                    |> filled clearGrey
-                    |> move (b.x + b.w / 2, b.y + b.h / 2)
-            ] ++ windows
-    in
-        group allForms

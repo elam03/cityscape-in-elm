@@ -1,12 +1,14 @@
 module Building where
 
--- import List
+import Color exposing (..)
+import Graphics.Collage exposing (..)
+import List exposing (..)
 
 -------------------------------------------------------------------------------
 -- Common/Constants
 -------------------------------------------------------------------------------
 
-type Layer = Front | Middle | Back
+type Layer = Front | Middle | Back | Static
 
 glassWindowSize : number
 glassWindowSize = 10
@@ -15,13 +17,16 @@ buildingWidth : number
 buildingWidth   = 40
 
 isBack : Building -> Bool
-isBack   b = b.layer == Back
+isBack b = b.layer == Back
 
 isMiddle : Building -> Bool
 isMiddle b = b.layer == Middle
 
 isFront : Building -> Bool
-isFront  b = b.layer == Front
+isFront b = b.layer == Front
+
+isStatic : Building -> Bool
+isStatic b = b.layer == Static
 
 -------------------------------------------------------------------------------
 -- GlassWindow
@@ -113,3 +118,31 @@ nullBuilding =
     , layer = Front
     , windows = []
     }
+
+
+clearGrey : Color
+clearGrey =
+    rgba 111 111 111 0.6
+
+darkGrey : Color
+darkGrey =
+    rgba 50 50 50 0.6
+
+glassWindowToForm : GlassWindow -> Form
+glassWindowToForm window =
+    rect window.w window.h
+        |> filled darkGrey
+        |> move (window.x + window.w / 2, window.y + window.h / 2)
+
+displayBuilding : Building -> Form
+displayBuilding b =
+    let windows = List.map (\a -> { a | x = a.x + b.x, y = a.y + b.y } ) b.windows
+            |> List.map glassWindowToForm
+
+        allForms =
+            [   rect b.w b.h
+                    |> filled clearGrey
+                    |> move (b.x + b.w / 2, b.y + b.h / 2)
+            ] ++ windows
+    in
+        group allForms
