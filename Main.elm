@@ -13,6 +13,8 @@ import Window
 
 import Building exposing (..)
 
+-- Model, Update, View,
+
 -- MODEL
 type alias Keys = Set.Set Char.KeyCode
 type MovementType = TimeMove | MouseMove | StaticMove | NullMove
