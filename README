@@ -1,1 +1,4 @@
 A dynamic cityscape created with elm!
+
+How to compile:
+elm-make Main.elm --output=index.html
