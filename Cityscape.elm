@@ -1,3 +1,5 @@
+module Cityscape where
+
 import Array
 import Char
 import Color exposing (..)

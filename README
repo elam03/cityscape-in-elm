@@ -1,7 +1,7 @@
 A dynamic cityscape created with elm!
 
 How to compile:
-elm-make Main.elm --output=index.html
+Execute 'build.sh'
 
-Or run with:
+Or use:
 elm reactor
